@@ -34,9 +34,14 @@ namespace PlayerGuesser
 
     public class PastTeam
     {
-        public string TeamName { get; set; }
-        public int StartYear { get; set; }
-        public int EndYear { get; set; }
+        public string strFormerTeam { get; set; }
+        public string strJoined { get; set; }
+        public string strDeparted { get; set; }
+    }
+    public class PastTeamRoot
+    {
+        [JsonProperty("formerteams")]
+        public List<PastTeam> PastTeamList { get; set; }
     }
     public class Honor
     {

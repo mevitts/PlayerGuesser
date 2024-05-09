@@ -31,23 +31,53 @@ namespace PlayerGuesser
 
                 foreach ( Player player in players )
                 {
-                    getPlayerHonors(player.id);
-                }
-                foreach ( Player player in players )
-                {
-                    getPlayerPastTeams(player.id);
+                    String name = player.first_name + "_" + player.last_name;
+                    int newID = await GetPlayerNewID(player.id, name);
+                    player.Honors = await GetPlayerHonors(newID);
+                    player.PastTeams = await GetPlayerPastTeams(newID);
                 }
                 return players;
             }
             return players;
         }
 
-        private void getPlayerPastTeams(int id)
+        public async Task<int> GetPlayerNewID(int id, String name)
         {
-            throw new NotImplementedException();
+            var client = new RestClient("https://thesportsdb.com/api/v1/json/3/");
+            var request = new RestRequest($"searchplayers.php?p={name}");
+
+            var response = await client.ExecuteAsync(request);
+            //need to add assurance that not a duplicate
+            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                var rawResponse = response.Content;
+                int newID = JsonConvert.DeserializeObject<int>(rawResponse);
+                return newID;
+            }
+            return -1;
+        }
+        public async Task<List<PastTeam>> GetPlayerPastTeams(int id)
+        {
+            var client = new RestClient("https://thesportsdb.com/api/v1/json/3/");
+            var request = new RestRequest($"lookupformerteams.php?id={id}");
+           
+            var response = await client.ExecuteAsync<PastTeamRoot>(request);
+
+            List<PastTeam> pastTeams = new();
+
+            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                string rawResponse = response.Content;
+                var serialize = JsonConvert.DeserializeObject<PastTeamRoot>(rawResponse);
+
+                //serialize is the rawResponse converted into a PastTeamRoot object, which is why it is serialize.PastTeamList
+                pastTeams = serialize.PastTeamList;
+                return pastTeams;
+            }
+            return pastTeams;
         }
 
-        private void getPlayerHonors(int id)
+        public async Task<List<Honor>> GetPlayerHonors(int id)
         {
             throw new NotImplementedException();
         }
