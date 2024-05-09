@@ -45,7 +45,13 @@ namespace PlayerGuesser
     }
     public class Honor
     {
-        public string Title { get; set; }
-        public int YearReceived { get; set; }
+        public string strHonour { get; set; }
+        public int strSeason { get; set; }
+        public string strTeam {  get; set; }
+    }
+    public class Honors
+    {
+        [JsonProperty("honours")]
+        public List<Honor> HonorsList { get; set; }
     }
 }

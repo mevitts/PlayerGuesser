@@ -79,7 +79,22 @@ namespace PlayerGuesser
 
         public async Task<List<Honor>> GetPlayerHonors(int id)
         {
-            throw new NotImplementedException();
+            var client = new RestClient("https://thesportsdb.com/api/v1/json/3/");
+            var request = new RestRequest($"lookuphonours.php?id={id}");
+
+            var response = await client.ExecuteAsync<Honors>(request);
+
+            List<Honor> honours = new();
+
+            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                string rawResponse = response.Content;
+                var serialize = JsonConvert.DeserializeObject<Honors>(rawResponse);
+
+                honours = serialize.HonorsList;
+                return honours;
+            }
+            return honours;
         }
     }
 }
