@@ -19,7 +19,58 @@ internal class DatabaseManager
         using (var connection = new MySqlConnection(connectionString))
         {
             connection.Open();
+            //teams
+            using (var tableCmd = connection.CreateCommand())
+            {
+                //primary key makes it unique and not null
+                tableCmd.CommandText =
+                    @$"CREATE TABLE IF NOT EXISTS teams (
+                        id INT PRIMARY KEY,
+                        conference VARCHAR(10),
+                        division VARCHAR(255),
+                        city VARCHAR(255),
+                        name VARCHAR(255),
+                        fullName VARCHAR(255),
+                        abbreviation VARCHAR(5))";
 
+                tableCmd.ExecuteNonQuery();
+            }
+            using (var indexCmd = connection.CreateCommand())
+            {
+                bool indexExists = IndexExists(connection, "teams", "team_name_index");
+
+                if (!indexExists)
+                {
+                    indexCmd.CommandText = "ALTER TABLE teams ADD INDEX team_name_index (name)";
+                    indexCmd.ExecuteNonQuery();
+                }
+            }
+            //honors
+            using (var tableCmd = connection.CreateCommand())
+            {
+                tableCmd.CommandText =
+                    @$"CREATE TABLE IF NOT EXISTS honors (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        team_name VARCHAR(255),
+                        title VARCHAR(255),
+                        year_received INT
+                        )";
+
+                tableCmd.ExecuteNonQuery();
+            }
+            //past teams
+            using (var tableCmd = connection.CreateCommand())
+            {
+                tableCmd.CommandText =
+                    @$"CREATE TABLE IF NOT EXISTS past_teams (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        team_name VARCHAR(255),
+                        start_year INT,
+                        end_year INT
+                        )";
+
+                tableCmd.ExecuteNonQuery();
+            }
             //players
             using (var tableCmd = connection.CreateCommand())
             {
@@ -39,48 +90,8 @@ internal class DatabaseManager
                         draft_round INT,
                         draft_number INT,
                         team_name VARCHAR(255),
-                        FOREIGN KEY (team_name) REFERENCES teams(name)";
-
-                tableCmd.ExecuteNonQuery();
-            }
-            //teams
-            using (var tableCmd = connection.CreateCommand())
-            {
-                //primary key makes it unique and not null
-                tableCmd.CommandText =
-                    @$"CREATE TABLE IF NOT EXISTS teams (
-                        id INT PRIMARY KEY,
-                        conference VARCHAR(10),
-                        division VARCHAR(255),
-                        city VARCHAR(255),
-                        name VARCHAR(255),
-                        fullName VARCHAR(255),
-                        abbreviation VARCHAR(5))";
-
-                tableCmd.ExecuteNonQuery();
-            }
-            //honors
-            using (var tableCmd = connection.CreateCommand())
-            {
-                tableCmd.CommandText =
-                    @$"CREATE TABLE IF NOT EXISTS honors (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        title VARCHAR(255),
-                        year_received INT
-                        )";
-
-                tableCmd.ExecuteNonQuery();
-            }
-            //past teams
-            using (var tableCmd = connection.CreateCommand())
-            {
-                tableCmd.CommandText =
-                    @$"CREATE TABLE IF NOT EXISTS past_teams (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        team_name VARCHAR(255),
-                        start_year INT,
-                        end_year INT
-                        )";
+                        FOREIGN KEY (team_name) REFERENCES teams(name)
+                     )";
 
                 tableCmd.ExecuteNonQuery();
             }
@@ -168,6 +179,20 @@ internal class DatabaseManager
             }
 
             connection.Close();
+        }
+    }
+    static bool IndexExists(MySqlConnection connection, string tableName, string indexName)
+    {
+        using (MySqlCommand cmd = connection.CreateCommand())
+        {
+            cmd.CommandText = "SELECT COUNT(*) FROM information_schema.statistics " +
+                          //setting parameters here, then adds them later
+                          "WHERE table_schema = @dbName AND table_name = @tableName AND index_name = @indexName";
+            cmd.Parameters.AddWithValue("@dbName", connection.Database);
+            cmd.Parameters.AddWithValue("@tableName", tableName);
+            cmd.Parameters.AddWithValue("@indexName", indexName);
+
+            return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
         }
     }
 }

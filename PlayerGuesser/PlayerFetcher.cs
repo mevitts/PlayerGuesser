@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -10,35 +11,47 @@ namespace PlayerGuesser
 {
     internal class PlayerFetcher
     {
-        string API_KEY = "-7db6e40f-a4da-4c9d-8cd1-f86f5803b6ac ";
-        public async Task<List<Player>> getPlayers()
+        string API_KEY = "7db6e40f-a4da-4c9d-8cd1-f86f5803b6ac";
+        public async Task<List<Player>> GetPlayers()
         {
-            var client = new RestClient("https://api.balldontlie.io/v1/");
-            var request = new RestRequest($"players");
-            request.AddHeader("Authorization:", $" {API_KEY}");
-
-            var response = await client.ExecuteAsync<Players>(request);
-
-            List<Player> players = new();
-
-            if (response.StatusCode == System.Net.HttpStatusCode.OK)
+            try
             {
-                //if status is ok store in string
-                string rawResponse = response.Content;
-                var serialize = JsonConvert.DeserializeObject<Players>(rawResponse);
+                var client = new RestClient("https://api.balldontlie.io/v1/");
+                var request = new RestRequest($"players");
+                request.AddHeader("Authorization", $"{API_KEY}");
 
-                players = serialize.PlayersList;
+                var response = await client.ExecuteAsync<Players>(request);
 
-                foreach ( Player player in players )
+                List<Player> players = new();
+
+                if (response.StatusCode == System.Net.HttpStatusCode.OK)
                 {
-                    String name = player.first_name + "_" + player.last_name;
-                    int newID = await GetPlayerNewID(player.id, name);
-                    player.Honors = await GetPlayerHonors(newID);
-                    player.PastTeams = await GetPlayerPastTeams(newID);
+                    //if status is ok store in string
+                    string rawResponse = response.Content;
+                    var serialize = JsonConvert.DeserializeObject<Players>(rawResponse);
+
+                    players = serialize.PlayersList;
+
+                    foreach (Player player in players)
+                    {
+                        String name = player.first_name + "_" + player.last_name;
+                        int newID = await GetPlayerNewID(player.id, name);
+                        player.Honors = await GetPlayerHonors(newID);
+                        player.PastTeams = await GetPlayerPastTeams(newID);
+                    }
+                    return players;
                 }
-                return players;
+                else
+                {
+                    Console.WriteLine("Error: API req failed");
+                    return new List<Player>() ;
+                }
             }
-            return players;
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return new List<Player>();
+            }
         }
 
         public async Task<int> GetPlayerNewID(int id, String name)
@@ -51,8 +64,25 @@ namespace PlayerGuesser
             if (response.StatusCode == System.Net.HttpStatusCode.OK)
             {
                 var rawResponse = response.Content;
-                int newID = JsonConvert.DeserializeObject<int>(rawResponse);
-                return newID;
+                dynamic responseObject = JsonConvert.DeserializeObject(rawResponse);
+                if (responseObject != null && responseObject.player != null)
+                {
+                    string idPlayer = responseObject.player[0]?.idPlayer;
+
+                    if (int.TryParse(idPlayer, out int newID))
+                    {
+                        return newID;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Unable to parse player ID");
+                        return -1;
+                    }
+                }
+                else
+                {
+                    return -1;
+                }
             }
             return -1;
         }

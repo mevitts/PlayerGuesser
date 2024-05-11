@@ -24,9 +24,9 @@ namespace PlayerGuesser
         public string jersey_number { get; set; }
         public string college { get; set; }
         public string country { get; set; }
-        public int draft_year { get; set; }
-        public int draft_round { get; set; }
-        public int draft_number { get; set; }
+        public int? draft_year { get; set; }
+        public int? draft_round { get; set; }
+        public int? draft_number { get; set; }
         public string team_name { get; set; }
         public List<PastTeam> PastTeams { get; set; }
         public List<Honor> Honors { get; set; }
@@ -46,7 +46,7 @@ namespace PlayerGuesser
     public class Honor
     {
         public string strHonour { get; set; }
-        public int strSeason { get; set; }
+        public string strSeason { get; set; }
         public string strTeam {  get; set; }
     }
     public class Honors
