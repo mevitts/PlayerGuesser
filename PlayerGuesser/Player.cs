@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Org.BouncyCastle.Asn1;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,8 @@ namespace PlayerGuesser
         [JsonProperty("data")]
         public List<Player> PlayersList { get; set; }
 
+        [JsonProperty("meta")]
+        public Meta MetaData { get; set; }
     }
     public class Player
     {
@@ -27,11 +30,10 @@ namespace PlayerGuesser
         public int? draft_year { get; set; }
         public int? draft_round { get; set; }
         public int? draft_number { get; set; }
-        public string team_name { get; set; }
-        public List<PastTeam> PastTeams { get; set; }
-        public List<Honor> Honors { get; set; }
+        public Team team { get; set; }
+        public List<PastTeam>? PastTeams { get; set; }
+        public List<Honor>? Honors { get; set; }
     }
-
     public class PastTeam
     {
         public string strFormerTeam { get; set; }
@@ -53,5 +55,9 @@ namespace PlayerGuesser
     {
         [JsonProperty("honours")]
         public List<Honor> HonorsList { get; set; }
+    }
+    public class Meta
+    {
+        public int next_cursor { get; set; }
     }
 }

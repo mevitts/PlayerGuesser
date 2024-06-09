@@ -51,9 +51,9 @@ internal class DatabaseManager
                 tableCmd.CommandText =
                     @$"CREATE TABLE IF NOT EXISTS honors (
                         id INT AUTO_INCREMENT PRIMARY KEY,
-                        team_name VARCHAR(255),
                         title VARCHAR(255),
-                        year_received INT
+                        year_received VARCHAR(255),
+                        team_name VARCHAR(255)
                         )";
 
                 tableCmd.ExecuteNonQuery();
@@ -89,8 +89,7 @@ internal class DatabaseManager
                         draft_year INT,
                         draft_round INT,
                         draft_number INT,
-                        team_name VARCHAR(255),
-                        FOREIGN KEY (team_name) REFERENCES teams(name)
+                        team_name VARCHAR(255)
                      )";
 
                 tableCmd.ExecuteNonQuery();
@@ -100,10 +99,12 @@ internal class DatabaseManager
             {
                 tableCmd.CommandText =
                     @$"CREATE TABLE IF NOT EXISTS players_honors (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
                         player_id INT,
                         honor_id INT,
-                        year_received INT,
-                        PRIMARY KEY (player_id, honor_id),
+                        honor_title VARCHAR(255),
+                        year_received VARCHAR(255),
+                        team VARCHAR(255),
                         FOREIGN KEY (player_id) REFERENCES players(id),
                         FOREIGN KEY (honor_id) REFERENCES honors(id)
                         )";
@@ -115,13 +116,12 @@ internal class DatabaseManager
             {
                 tableCmd.CommandText =
                     @$"CREATE TABLE IF NOT EXISTS players_pastteams (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
                         player_id INT,
-                        past_team_id INT,
+                        past_team_id VARCHAR(255),
                         start_year INT,
                         end_year INT,
-                        PRIMARY KEY (player_id, past_team_id),
-                        FOREIGN KEY (player_id) REFERENCES players(id),
-                        FOREIGN KEY (past_team_id) REFERENCES past_teams(id)
+                        FOREIGN KEY (player_id) REFERENCES players(id)
                         )";
 
                 tableCmd.ExecuteNonQuery();
@@ -130,54 +130,129 @@ internal class DatabaseManager
             connection.Close();
         }
     }
-    internal void AddToTables(string connectionString)
+    internal void AddToTables(string connectionString, List<Player> players, List<Team> teams)
     {
         using (var connection = new MySqlConnection(connectionString))
         {
             connection.Open();
             //players
+            Console.WriteLine("Working on step1");
             using (var tableCmd = connection.CreateCommand())
             {
-                tableCmd.CommandText = @$"INSERT INTO players (id, first_name, last_name, position, height, weight, jersey_number, college, country, draft_year, draft_round, draft_number, team_full_name)
+                tableCmd.CommandText = @$"INSERT INTO players (id, first_name, last_name, position, height, weight, jersey_number, college, country, draft_year, draft_round, draft_number, team_name)
                     VALUES (@playerID, @firstName, @lastName, @playerPos, @height, @playerWeight, @jersey, @college, @country, @draftYear, @draftRound, @draftNumber, @teamFullName)";
-                tableCmd.ExecuteNonQuery();
+                foreach (var player in players)
+                {
+                    tableCmd.Parameters.Clear();
+                    tableCmd.Parameters.AddWithValue("@playerID", player.id);
+                    tableCmd.Parameters.AddWithValue("@firstName", player.first_name);
+                    tableCmd.Parameters.AddWithValue("@lastName", player.last_name);
+                    tableCmd.Parameters.AddWithValue("@playerPos", player.position);
+                    tableCmd.Parameters.AddWithValue("@height", player.height);
+                    tableCmd.Parameters.AddWithValue("@playerWeight", player.weight);
+                    tableCmd.Parameters.AddWithValue("@jersey", player.jersey_number);
+                    tableCmd.Parameters.AddWithValue("@college", player.college);
+                    tableCmd.Parameters.AddWithValue("@country", player.country);
+                    tableCmd.Parameters.AddWithValue("@draftYear", player.draft_year);
+                    tableCmd.Parameters.AddWithValue("@draftRound", player.draft_round);
+                    tableCmd.Parameters.AddWithValue("@draftNumber", player.draft_number);
+                    tableCmd.Parameters.AddWithValue("@teamFullName", player.team.full_name);
+                    tableCmd.ExecuteNonQuery();
+                }
             }
             //teams
+            Console.WriteLine("Working on step2");
             using (var tableCmd = connection.CreateCommand())
             {
                 tableCmd.CommandText = @$"INSERT INTO teams (id, conference, division, city, name, fullName, abbreviation)
                     VALUES (@teamId, @conference, @division, @city, @name, @fullName, @abbreviation)";
-                tableCmd.ExecuteNonQuery();
+                foreach (var team in teams)
+                {
+                    tableCmd.Parameters.Clear();
+                    tableCmd.Parameters.AddWithValue("@teamId", team.id);
+                    tableCmd.Parameters.AddWithValue("@conference", team.conference);
+                    tableCmd.Parameters.AddWithValue("@division", team.division);
+                    tableCmd.Parameters.AddWithValue("@city", team.city);
+                    tableCmd.Parameters.AddWithValue("@name", team.name);
+                    tableCmd.Parameters.AddWithValue("@fullName", team.full_name);
+                    tableCmd.Parameters.AddWithValue("@abbreviation", team.abbreviation);
+                    tableCmd.ExecuteNonQuery();
+                }
             }
             //honors
+            Console.WriteLine("Working on step3");
             using (var tableCmd = connection.CreateCommand())
             {
-                tableCmd.CommandText = @$"INSERT INTO honors (title, year_received)
-                    VALUES (@title, @yearReceived)";
-                tableCmd.ExecuteNonQuery();
+                tableCmd.CommandText = @$"INSERT INTO honors (title, year_received, team_name)
+                    VALUES (@title, @year_received, @team)";
+                foreach (var player in players)
+                {
+                    if (player.Honors != null && player.Honors.Any()) // Check if the player has any honors
+                    {
+                        foreach (Honor honor in player.Honors)
+                        {
+                            tableCmd.CommandText = @$"INSERT INTO honors (title, year_received, team_name)
+                    VALUES (@title, @year_Received, @team_name)";
+                            tableCmd.Parameters.Clear();
+                            tableCmd.Parameters.AddWithValue("@title", honor.strHonour);
+                            tableCmd.Parameters.AddWithValue("@year_received", honor.strSeason);
+                            tableCmd.Parameters.AddWithValue("@team_name", honor.strTeam);
+                            tableCmd.ExecuteNonQuery();
+
+
+                            long honorId = tableCmd.LastInsertedId;
+                            //playersHonors
+                            using (var playerHonorCmd = connection.CreateCommand())
+                            {
+                                playerHonorCmd.CommandText = @$"INSERT INTO players_honors (player_id, honor_id, honor_title, year_received, team)
+                    VALUES (@player_id, @honorID, @honor_title, @year_received, @team)";
+                                playerHonorCmd.Parameters.Clear();
+                                playerHonorCmd.Parameters.AddWithValue("@player_id", player.id);
+                                playerHonorCmd.Parameters.AddWithValue("@honorId", honorId);
+                                playerHonorCmd.Parameters.AddWithValue("@honor_title", honor.strHonour);
+                                playerHonorCmd.Parameters.AddWithValue("@year_received", honor.strSeason);
+                                playerHonorCmd.Parameters.AddWithValue("@team", honor.strTeam);
+                                playerHonorCmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                }
+
             }
-            //oastTTeams
+            //pastTTeams
+            Console.WriteLine("Working on step4");
             using (var tableCmd = connection.CreateCommand())
             {
                 tableCmd.CommandText = @$"INSERT INTO past_teams (team_name, start_year, end_year)
                     VALUES (@teamName, @startYear, @endYear)";
-                tableCmd.ExecuteNonQuery();
-            }
-            //playersHonors
-            using (var tableCmd = connection.CreateCommand())
-            {
-                tableCmd.CommandText = @$"INSERT INTO players_honors (player_id, title_id, year_received)
-                    VALUES (@playerId, @titleId, @yearReceived)";
-                tableCmd.ExecuteNonQuery();
-            }
-            //playersPastTeams
-            using (var tableCmd = connection.CreateCommand())
-            {
-                tableCmd.CommandText = @$"INSERT INTO players_pastteams (player_id, past_team_id, start_year, end_year)
-                    VALUES (@playerId, @pastTeamId, @startYear, @endYear)";
-                tableCmd.ExecuteNonQuery();
-            }
+                foreach (var player in players)
+                {
+                    if (player.PastTeams != null && player.PastTeams.Any())
+                    {
+                        foreach (PastTeam team in player.PastTeams)
+                        {
+                            tableCmd.Parameters.Clear();
+                            tableCmd.Parameters.AddWithValue("@teamName", team.strFormerTeam);
+                            tableCmd.Parameters.AddWithValue("@startYear", int.Parse(team.strJoined));
+                            tableCmd.Parameters.AddWithValue("@endYear", int.Parse(team.strDeparted));
+                            tableCmd.ExecuteNonQuery();
 
+                            //playersPastTeams
+                            using (var playerPastCmd = connection.CreateCommand())
+                            {
+                                playerPastCmd.CommandText = @$"INSERT INTO players_pastteams (player_id, past_team_id, start_year, end_year)
+                    VALUES (@player_id, @pastTeamId, @startYear, @endYear)";
+                                playerPastCmd.Parameters.Clear();
+                                playerPastCmd.Parameters.AddWithValue("@player_id", player.id);
+                                playerPastCmd.Parameters.AddWithValue("@pastTeamId", team.strFormerTeam);
+                                playerPastCmd.Parameters.AddWithValue("@startYear", int.Parse(team.strJoined));
+                                playerPastCmd.Parameters.AddWithValue("@endYear", int.Parse(team.strDeparted));
+                                playerPastCmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                }
+            }
             connection.Close();
         }
     }
@@ -193,6 +268,24 @@ internal class DatabaseManager
             cmd.Parameters.AddWithValue("@indexName", indexName);
 
             return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        }
+    }
+
+    internal async Task AddRemainingInfo(MySqlConnection connection)
+    {
+        using (MySqlCommand cmd = connection.CreateCommand()) 
+        {
+            cmd.CommandText = "SELECT first_name, last_name FROM players";
+
+            var reader = cmd.ExecuteReader();
+            PlayerFetcher playerFetcher = new PlayerFetcher();
+            while (reader.Read())
+            {
+                var fullName = $"{reader["first_name"].ToString()}_{reader["last_name"].ToString()}";
+
+                var pastTeamList = await playerFetcher.GetPlayerPastTeams(fullName);
+
+            }
         }
     }
 }

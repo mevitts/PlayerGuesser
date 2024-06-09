@@ -10,7 +10,6 @@ class Program
         DatabaseManager databaseManager = new DatabaseManager();
         databaseManager.CreateTables(connectionString);
         var gameProcess = new GameProcess();
-        gameProcess.StartGame();
-
+        gameProcess.StartGame(databaseManager, connectionString);
     }
 }

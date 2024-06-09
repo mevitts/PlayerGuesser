@@ -13,9 +13,9 @@ internal class GameProcess
     {
         mind = new Mind();
     }
-    internal void StartGame()
+    internal void StartGame(DatabaseManager databaseManager, string connectionString)
     {
-        UserInput.ConfirmReady();
+        UserInput.ConfirmReady(databaseManager, connectionString);
     }
 }
 
