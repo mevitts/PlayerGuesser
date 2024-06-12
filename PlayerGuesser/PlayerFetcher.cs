@@ -51,10 +51,6 @@ namespace PlayerGuesser
                             player.Honors = await GetPlayerHonors(newID);
                             player.PastTeams = await GetPlayerPastTeams(newID);
 
-                            if (nextCursor > 3200)
-                            {
-                                Console.WriteLine($"{player.first_name} {player.last_name}");
-                            }
                         }
                         Console.WriteLine($"Working on page {cursor}");
                         players.AddRange(temp);
@@ -125,27 +121,6 @@ namespace PlayerGuesser
             var client = new RestClient("https://thesportsdb.com/api/v1/json/3/");
             var request = new RestRequest($"lookupformerteams.php?id={id}");
            
-            var response = await client.ExecuteAsync<PastTeamRoot>(request);
-
-            List<PastTeam> pastTeams = new();
-
-            if (response.StatusCode == System.Net.HttpStatusCode.OK)
-            {
-                string rawResponse = response.Content;
-                var serialize = JsonConvert.DeserializeObject<PastTeamRoot>(rawResponse);
-
-                //serialize is the rawResponse converted into a PastTeamRoot object, which is why it is serialize.PastTeamList
-                pastTeams = serialize.PastTeamList;
-                return pastTeams;
-            }
-            return pastTeams;
-        }
-        //uses name
-        public async Task<List<PastTeam>> GetPlayerPastTeams(string name)
-        {
-            var client = new RestClient("https://thesportsdb.com/api/v1/json/3/");
-            var request = new RestRequest($"lookupformerteams.php?id={name}");
-
             var response = await client.ExecuteAsync<PastTeamRoot>(request);
 
             List<PastTeam> pastTeams = new();

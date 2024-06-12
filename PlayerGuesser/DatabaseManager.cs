@@ -270,20 +270,125 @@ internal class DatabaseManager
             return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
         }
     }
-
-    internal async Task AddRemainingInfo(MySqlConnection connection)
+    internal async Task AddRemainingInfo(string connectionString)
     {
-        using (MySqlCommand cmd = connection.CreateCommand()) 
+        TokenBucket tokenBucket = new TokenBucket();
+        tokenBucket.CreateBucket(100, 100);
+        try
         {
-            cmd.CommandText = "SELECT first_name, last_name FROM players";
-
-            var reader = cmd.ExecuteReader();
-            PlayerFetcher playerFetcher = new PlayerFetcher();
-            while (reader.Read())
+            using (var connection = new MySqlConnection(connectionString))
             {
-                var fullName = $"{reader["first_name"].ToString()}_{reader["last_name"].ToString()}";
+                await connection.OpenAsync();
+                using (MySqlCommand cmd = connection.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT id, first_name, last_name FROM players";
+                    Dictionary<int, string> playerNames = new Dictionary<int, string>();
+                    PlayerFetcher playerFetcher = new PlayerFetcher();
 
-                var pastTeamList = await playerFetcher.GetPlayerPastTeams(fullName);
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+
+                        while (await reader.ReadAsync())
+                        {
+                            var fullName = $"{reader["first_name"].ToString()}_{reader["last_name"].ToString()}";
+                            var id = (int)reader["id"];
+                            playerNames.Add(id, fullName);
+                        }
+
+                        await reader.CloseAsync();
+                    }
+                    foreach (var player in playerNames)
+                    {
+                        var fullname = player.Value;
+                        var id = player.Key;
+
+                        await tokenBucket.HandleRequest(tokenBucket);
+                        var newID = await playerFetcher.GetPlayerNewID(id, fullname);
+                        var pastTeamList = await playerFetcher.GetPlayerPastTeams(newID);
+
+                        await AddInstructions(connection, pastTeamList, id);
+                        Console.WriteLine($"{fullname}");
+                    }
+
+                }
+                await connection.CloseAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
+    }
+
+    internal async Task AddInstructions(MySqlConnection connection, List<PastTeam> pastTeamList, int id)
+    {
+        if (pastTeamList == null)
+        {
+            Console.WriteLine($"Null for {id}");
+            return;
+        }
+        using (var tableCmd = connection.CreateCommand())
+        {
+            tableCmd.CommandText = @$"
+                    INSERT INTO past_teams (team_name, start_year, end_year)
+                    VALUES (@teamName, @startYear, @endYear)";
+
+
+            foreach (PastTeam team in pastTeamList)
+            {
+                tableCmd.Parameters.Clear();
+                tableCmd.Parameters.AddWithValue("@teamName", team.strFormerTeam);
+
+                int startYear;
+                if (int.TryParse(team.strJoined, out startYear)) {
+                    tableCmd.Parameters.AddWithValue("@startYear", startYear);
+                }
+                else
+                {
+                    Console.WriteLine($"Invalid start year format for team: {team.strFormerTeam}");
+                    tableCmd.Parameters.AddWithValue("@startYear", DBNull.Value);
+                }
+                int endYear;
+                if (int.TryParse(team.strDeparted, out endYear)) {
+                    tableCmd.Parameters.AddWithValue("@endYear", endYear);
+                }
+                else
+                {
+                    Console.WriteLine($"Invalid end year format for team: {team.strFormerTeam}");
+                    tableCmd.Parameters.AddWithValue("@endYear", DBNull.Value);
+                }
+                await tableCmd.ExecuteNonQueryAsync();
+
+                //playersPastTeams
+                using (var playerPastCmd = connection.CreateCommand())
+                {
+                    playerPastCmd.CommandText = @$"INSERT INTO players_pastteams (player_id, past_team_id, start_year, end_year)
+                    VALUES (@player_id, @pastTeamId, @startYear, @endYear)";
+                    playerPastCmd.Parameters.Clear();
+                    playerPastCmd.Parameters.AddWithValue("@player_id", id);
+                    playerPastCmd.Parameters.AddWithValue("@pastTeamId", team.strFormerTeam);
+
+                    if (int.TryParse(team.strJoined, out startYear))
+                    {
+                        playerPastCmd.Parameters.AddWithValue("@startYear", startYear);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Invalid start year format for team: {team.strFormerTeam}");
+                        playerPastCmd.Parameters.AddWithValue("@startYear", DBNull.Value);
+                    }
+
+                    if (int.TryParse(team.strDeparted, out endYear))
+                    {
+                        playerPastCmd.Parameters.AddWithValue("@endYear", endYear);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Invalid end year format for team: {team.strFormerTeam}");
+                        playerPastCmd.Parameters.AddWithValue("@endYear", DBNull.Value);
+                    }
+                    await playerPastCmd.ExecuteNonQueryAsync();
+                }
 
             }
         }
