@@ -319,7 +319,6 @@ internal class DatabaseManager
             Console.WriteLine(ex.ToString());
         }
     }
-
     internal async Task AddInstructions(MySqlConnection connection, List<PastTeam> pastTeamList, int id)
     {
         if (pastTeamList == null)
