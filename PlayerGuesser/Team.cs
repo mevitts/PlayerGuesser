@@ -97,10 +97,10 @@ public class Team
 
     public static bool DoesMatch(string college, string collegeTeam)
     {
-        if (pastTeams == null)
+        if (college == null)
             return false;
-
-        return pastTeams.Any(pt => pt.strFormerTeam == collegeTeam);
+        if (college == collegeTeam) return true;
+        else return false;
     }
 
     public bool DoesMatch(List<PastTeam> pastTeams, List<Team> teams, string divOrConf)
@@ -136,7 +136,10 @@ public class Team
                 {
                     while (await reader.ReadAsync())
                     {
-                        teams.Add(reader.GetString(0));
+                        if (!reader.IsDBNull(0))
+                        {
+                            teams.Add(reader.GetString(0));
+                        }
                     }//building and adding team
                 }//using reader
             }//making sql command
